@@ -1,0 +1,223 @@
+<canvas id="view" style="background:black;">
+</canvas>
+<script>
+const VIEW_SIZE = 8000;
+
+const SCALE_FACTOR = Math.pow(10,9);
+const TIME_UNIT = 100;
+const TIME_SCALE = 3000;
+const GRAV_CONSTANT = 6.67408 * Math.pow(10,-11);
+
+
+class Drawable{
+	constructor(instructions,position,scale,rotation){
+		this.instructions = instructions;
+		this.position = position;
+		this.scale = scale?scale:1;
+		this.rotation = rotation?rotation:0;
+		
+	}
+	draw(context){
+		for (var step of this.instructions){
+			step(context);
+		}
+	}
+}
+class Particle extends Drawable {
+	constructor(position,velocity,mass,radius,color){
+		super([],position,1,0);
+		this.velocity = velocity;
+		this.mass = mass;
+		this.radius = radius;
+		this.color = color;
+	}
+	draw(context){
+
+		context.beginPath();
+		context.fillStyle = this.color;
+		context.arc(this.position.x/SCALE_FACTOR,this.position.y/SCALE_FACTOR,this.radius,0,Math.PI*2,false);
+		context.fill();
+		context.fillStyle="#000000";
+	}
+	update(){
+		this.position.x += this.velocity.x*TIME_UNIT;
+		this.position.y += this.velocity.y*TIME_UNIT;
+	}
+}
+
+
+
+class World {
+	constructor(particles, context){
+		this.particles = particles;
+		this.context = context;
+		this.history = [];
+	}
+	update(){	
+		var i,j;
+		for(i = 0; i != this.particles.length; i++){
+			for(j = i+1; j != this.particles.length; j++){
+				if (i != j){
+					var particleA = this.particles[i];
+					var particleB = this.particles[j];
+					if(this.collided(particleA,particleB)){
+						//COLLISION LOGIC
+					} 
+					this.applyGravity(particleA, particleB);
+
+				}
+			}
+		}
+		for(i = 0; i != this.particles.length; i++){
+			let particle = this.particles[i];
+			this.particles[i].update();
+		}
+
+	}
+	draw(){
+		this.context.clearRect(0, 0, VIEW_SIZE, VIEW_SIZE);
+		for (var particle of this.particles){
+			particle.draw(this.context)
+		}
+	}
+	doFrame(){
+		var i;
+		for( i = 0; i !== TIME_SCALE; i++){
+			this.update();
+		}
+
+		this.draw();
+   		window.requestAnimationFrame(this.doFrame.bind(this));
+	}
+
+	//Distance between 2 particles
+	distance(particleA, particleB){
+		return (Math.sqrt(Math.pow(particleB.position.x - particleA.position.x,2) + Math.pow(particleB.position.y - particleA.position.y,2)));
+	}
+
+	//Magnitude of force applied by particleB to particleA
+	gravity(particleA, particleB){
+		let m = particleA.mass*particleB.mass;
+		let r2 = Math.pow(this.distance(particleA, particleB),2);
+		return (GRAV_CONSTANT*m)/r2;
+
+	}
+
+	//Check if particle has collided
+	collided(particleA, particleB){
+		let distance = this.distance(particleA, particleB);
+
+		return distance <= (particleA.radius + particleB.radius);
+	}
+
+	//Apply force change resulting from collision
+	applyCollision(particleA, particleB){
+
+	}
+
+	//Apply the gravity exerted on particleA by particleB
+	applyGravity(particleA, particleB){
+		let distance =  this.distance(particleA, particleB);
+		//let angle = Math.acos((particleB.position.x - particleA.position.x)/distance);
+		let angle = Math.atan2(particleB.position.y - particleA.position.y, particleB.position.x - particleA.position.x);
+		let forceMag = this.gravity(particleA, particleB);
+		let force = {
+			x:forceMag * Math.cos(angle),
+			y:forceMag * Math.sin(angle),
+		}
+		let accA = {
+			x: force.x / particleA.mass,
+			y: force.y / particleA.mass,
+		}
+		let accB = {
+			x: -force.x / particleB.mass,
+			y: -force.y / particleB.mass,
+		}
+
+		particleA.velocity.x -= accA.x;
+		particleA.velocity.y -= accA.y;
+
+		particleB.velocity.x += accB.x;
+		particleB.velocity.y += accB.y;
+
+	}
+	start(){
+		this.doFrame();
+	}
+}
+document.getElementById("view").width = VIEW_SIZE;
+document.getElementById("view").height = VIEW_SIZE;
+var ctx = document.getElementById("view").getContext("2d",{ alpha: false });
+
+//Planet definitions
+const MASS_SUN = 1.989*(Math.pow(10,30));
+
+const MASS_MERCURY 		= 3.285*(Math.pow(10,23));
+const DIST_MERCURY 		= 57.91*SCALE_FACTOR;
+const VELOCITY_MERCURY 	= 4.74*Math.pow(10,3);
+
+const MASS_VENUS		= 4.867*(Math.pow(10,24));
+const DIST_VENUS 		= 108.2*SCALE_FACTOR;
+const VELOCITY_VENUS 	= 3.5*Math.pow(10,3);
+
+const MASS_EARTH 		= 5.972*(Math.pow(10,24));
+const DIST_EARTH 		= 149.6*SCALE_FACTOR;
+const VELOCITY_EARTH 	= 2.978473*Math.pow(10,3);
+
+const MASS_MARS 		= 6.39*(Math.pow(10,23));
+const DIST_MARS 		= 227.9*SCALE_FACTOR;
+const VELOCITY_MARS 	= 2.478473*Math.pow(10,3);
+
+const MASS_JUPITER 		= 1.898*(Math.pow(10,27));
+const DIST_JUPITER 		= 778.5*SCALE_FACTOR;
+const VELOCITY_JUPITER 	= 1.31*Math.pow(10,3);
+
+const MASS_SATURN 		= 5.6834*(Math.pow(10,26));
+const DIST_SATURN 		= 1433*SCALE_FACTOR;
+const VELOCITY_SATURN 	= 0.968*Math.pow(10,3);
+
+const MASS_URANUS 		= 8.681*(Math.pow(10,25));
+const DIST_URANUS 		= 2871*SCALE_FACTOR;
+const VELOCITY_URANUS 	= 0.68*Math.pow(10,3);
+
+const MASS_NEPTUNE 		= 1.024*(Math.pow(10,26));
+const DIST_NEPTUNE 		= 4495*SCALE_FACTOR;
+const VELOCITY_NEPTUNE 	= 0.543*Math.pow(10,3);
+
+const MASS_PLUTO 		= 1.303*(Math.pow(10,22));
+const DIST_PLUTO 		= 3670*SCALE_FACTOR;
+const VELOCITY_PLUTO 	= 0.467*Math.pow(10,3);
+
+const MIDDLE = (VIEW_SIZE/2)*SCALE_FACTOR;
+
+var planets = [];
+
+//Create the planets. Exposed as globals for debugging
+sun = new Particle({x:MIDDLE, y:MIDDLE},{x:0,y:0},MASS_SUN,20,"yellow");
+mercury = new Particle({x:MIDDLE - DIST_MERCURY , y:MIDDLE},{x:0.0,y:VELOCITY_MERCURY},MASS_MERCURY ,2,"grey");
+venus = new Particle({x:MIDDLE - DIST_VENUS , y:MIDDLE},{x:0.0,y:VELOCITY_VENUS},MASS_VENUS ,2,"purple");
+earth = new Particle({x:MIDDLE - DIST_EARTH , y:MIDDLE},{x:0.0,y:VELOCITY_EARTH},MASS_EARTH ,3,"blue");
+mars = new Particle({x:MIDDLE - DIST_MARS , y:MIDDLE},{x:0.0,y:VELOCITY_MARS},MASS_MARS ,2,"red");
+jupiter = new Particle({x:MIDDLE - DIST_JUPITER , y:MIDDLE},{x:0.0,y:VELOCITY_JUPITER},MASS_JUPITER ,10,"#c99039");
+saturn = new Particle({x:MIDDLE - DIST_SATURN , y:MIDDLE},{x:0.0,y:VELOCITY_SATURN},MASS_SATURN ,5,"#e3e0c0");
+uranus = new Particle({x:MIDDLE - DIST_URANUS , y:MIDDLE},{x:0.0,y:VELOCITY_URANUS},MASS_URANUS ,6,"cyan");
+neptune = new Particle({x:MIDDLE - DIST_NEPTUNE , y:MIDDLE},{x:0.0,y:VELOCITY_NEPTUNE},MASS_NEPTUNE ,5,"#85addb");
+pluto = new Particle({x:MIDDLE - DIST_PLUTO , y:MIDDLE},{x:0.0,y:VELOCITY_PLUTO},MASS_PLUTO ,2,"#ddc4af");
+
+//Add to planet list
+planets.push(sun);
+planets.push(mercury);
+planets.push(venus);
+planets.push(earth);
+planets.push(jupiter);
+planets.push(mars);
+planets.push(saturn);
+planets.push(uranus);
+planets.push(pluto);
+
+//Start script
+var world = new World(planets, ctx);
+world.start();
+
+window.scrollTo(VIEW_SIZE/2 - screen.width/2,VIEW_SIZE/2 - screen.height/3)
+</script>

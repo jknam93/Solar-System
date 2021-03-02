@@ -1,17 +1,17 @@
 <canvas id="view" style="background:black;">
 </canvas>
 <script>
+//Constants, including actual scientific kind
+const GRAV_CONSTANT = 6.67408 * Math.pow(10,-11);
 const VIEW_SIZE = 8000;
-
 const SCALE_FACTOR = Math.pow(10,9);
 const TIME_UNIT = 100;
-const TIME_SCALE = 3000;
-const GRAV_CONSTANT = 6.67408 * Math.pow(10,-11);
+const TIME_SCALE = 1000;
 
-
+//Drawable component
 class Drawable{
 	constructor(instructions,position,scale,rotation){
-		this.instructions = instructions;
+		this.instructions = instructions; //Transformation instructions
 		this.position = position;
 		this.scale = scale?scale:1;
 		this.rotation = rotation?rotation:0;
@@ -23,6 +23,7 @@ class Drawable{
 		}
 	}
 }
+//Particle class with Drawable component
 class Particle extends Drawable {
 	constructor(position,velocity,mass,radius,color){
 		super([],position,1,0);
@@ -31,20 +32,20 @@ class Particle extends Drawable {
 		this.radius = radius;
 		this.color = color;
 	}
+	//Actually draw
 	draw(context){
-
 		context.beginPath();
 		context.fillStyle = this.color;
 		context.arc(this.position.x/SCALE_FACTOR,this.position.y/SCALE_FACTOR,this.radius,0,Math.PI*2,false);
 		context.fill();
 		context.fillStyle="#000000";
 	}
+	//Update position 
 	update(){
 		this.position.x += this.velocity.x*TIME_UNIT;
 		this.position.y += this.velocity.y*TIME_UNIT;
 	}
 }
-
 
 
 class World {
@@ -53,16 +54,14 @@ class World {
 		this.context = context;
 		this.history = [];
 	}
-	update(){	
+	//Update position of all the planets
+	update(){
 		var i,j;
 		for(i = 0; i != this.particles.length; i++){
 			for(j = i+1; j != this.particles.length; j++){
 				if (i != j){
 					var particleA = this.particles[i];
 					var particleB = this.particles[j];
-					if(this.collided(particleA,particleB)){
-						//COLLISION LOGIC
-					} 
 					this.applyGravity(particleA, particleB);
 
 				}
@@ -74,18 +73,26 @@ class World {
 		}
 
 	}
+	//Actually draw the objects in the system
 	draw(){
 		this.context.clearRect(0, 0, VIEW_SIZE, VIEW_SIZE);
 		for (var particle of this.particles){
 			particle.draw(this.context)
 		}
+		for (var history of this.history){
+			this.context.beginPath();
+			this.context.fillStyle = history.color;
+			this.context.arc(history.x/SCALE_FACTOR,history.y/SCALE_FACTOR,history.radius,0,Math.PI*2,false);
+			this.context.fill();
+			this.context.fillStyle="#000000";
+		}
 	}
+	//Do logic for the frame, including drawing and updating positions
 	doFrame(){
 		var i;
 		for( i = 0; i !== TIME_SCALE; i++){
 			this.update();
 		}
-
 		this.draw();
    		window.requestAnimationFrame(this.doFrame.bind(this));
 	}
@@ -103,22 +110,9 @@ class World {
 
 	}
 
-	//Check if particle has collided
-	collided(particleA, particleB){
-		let distance = this.distance(particleA, particleB);
-
-		return distance <= (particleA.radius + particleB.radius);
-	}
-
-	//Apply force change resulting from collision
-	applyCollision(particleA, particleB){
-
-	}
-
 	//Apply the gravity exerted on particleA by particleB
 	applyGravity(particleA, particleB){
 		let distance =  this.distance(particleA, particleB);
-		//let angle = Math.acos((particleB.position.x - particleA.position.x)/distance);
 		let angle = Math.atan2(particleB.position.y - particleA.position.y, particleB.position.x - particleA.position.x);
 		let forceMag = this.gravity(particleA, particleB);
 		let force = {
@@ -141,16 +135,21 @@ class World {
 		particleB.velocity.y += accB.y;
 
 	}
+
+	//Run simulation
 	start(){
 		this.doFrame();
 	}
 }
+
+//Setup view
 document.getElementById("view").width = VIEW_SIZE;
 document.getElementById("view").height = VIEW_SIZE;
-var ctx = document.getElementById("view").getContext("2d",{ alpha: false });
+var ctx = document.getElementById("view").getContext("2d");
 
 //Planet definitions
 const MASS_SUN = 1.989*(Math.pow(10,30));
+const MIDDLE = (VIEW_SIZE/2)*SCALE_FACTOR;
 
 const MASS_MERCURY 		= 3.285*(Math.pow(10,23));
 const DIST_MERCURY 		= 57.91*SCALE_FACTOR;
@@ -188,9 +187,7 @@ const MASS_PLUTO 		= 1.303*(Math.pow(10,22));
 const DIST_PLUTO 		= 3670*SCALE_FACTOR;
 const VELOCITY_PLUTO 	= 0.467*Math.pow(10,3);
 
-const MIDDLE = (VIEW_SIZE/2)*SCALE_FACTOR;
 
-var planets = [];
 
 //Create the planets. Exposed as globals for debugging
 sun = new Particle({x:MIDDLE, y:MIDDLE},{x:0,y:0},MASS_SUN,20,"yellow");
@@ -205,6 +202,7 @@ neptune = new Particle({x:MIDDLE - DIST_NEPTUNE , y:MIDDLE},{x:0.0,y:VELOCITY_NE
 pluto = new Particle({x:MIDDLE - DIST_PLUTO , y:MIDDLE},{x:0.0,y:VELOCITY_PLUTO},MASS_PLUTO ,2,"#ddc4af");
 
 //Add to planet list
+var planets = [];
 planets.push(sun);
 planets.push(mercury);
 planets.push(venus);
@@ -219,5 +217,6 @@ planets.push(pluto);
 var world = new World(planets, ctx);
 world.start();
 
-window.scrollTo(VIEW_SIZE/2 - screen.width/2,VIEW_SIZE/2 - screen.height/3)
+//Center view to Sun
+window.scrollTo(VIEW_SIZE/4,VIEW_SIZE/4)
 </script>
